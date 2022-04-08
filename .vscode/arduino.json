@@ -1,0 +1,5 @@
+{
+    "board": "arduino:avr:leonardo",
+    "sketch": "src/SonicScrewdriver.ino",
+    "port": "/dev/ttyACM0"
+}
