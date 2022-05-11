@@ -9,13 +9,16 @@
 const byte ACTION_BTN_PIN = 9;
 
 const byte TORCH_PIN = 5;
-const byte SOLDERING_IRON_PIN = 10;
 
-const byte SCREWDRIVER_FORWARD = 6;
-const byte SCREWDRIVER_BACKWARDS = 7;
+const byte SCREWDRIVER_ACTIVATE = 14;
+const byte SCREWDRIVER_FORWARD = 0;
+const byte SCREWDRIVER_BACKWARDS = 1;
 
 const byte SCREEN_WIDTH = 128;
 const byte SCREEN_HEIGHT = 32;
+
+#define R1 46500
+#define R2 33800
 
 unsigned long buttonTimer = 0;
 int longPressTime = 500;
@@ -24,15 +27,15 @@ char *modes[] = {
     "Ambient",
     "Torch",
     "Screwdriver",
-    "Soldering Iron",
-    "IR Temp"
+    "IR Temp",
+    "Voltemeter"
 };
 
 #define AMBIENT_STATS 0
 #define TORCH 1
 #define SCREWDRIVER 2
-#define SOLDERING_IRON 3
-#define IR_TEMP 4
+#define IR_TEMP 3
+#define VOLTMETER 4
 
 #define N_MODES 5
 
@@ -147,15 +150,8 @@ void ambientSensor() {
     };
 }
 
-void solderingIronMode() {
-    digitalWrite(SOLDERING_IRON_PIN, HIGH);
-    displayText(F("Iron heating..."));
-    delay(1000);
-    while (readActionButton() != LOW) {};
-    digitalWrite(SOLDERING_IRON_PIN, LOW);
-}
-
 void screwDriverMode() {
+    digitalWrite(SCREWDRIVER_ACTIVATE, HIGH);
     display.clearDisplay();
     display.drawChar(2, SCREEN_HEIGHT/2, 0x18, SSD1306_WHITE, SSD1306_BLACK, 1, 1);
     display.setCursor(4, SCREEN_HEIGHT/2);
@@ -214,6 +210,7 @@ void screwDriverMode() {
                     display.print(" Screwdriver Active");
                     display.display();
                 } else if (clicks == 3) {
+                    digitalWrite(SCREWDRIVER_ACTIVATE, LOW);
                     break;
                 }
                 clicks = 0;
@@ -228,10 +225,23 @@ void irTemp() {
     while(readActionButton() != LOW) {
         display.clearDisplay();
         display.setCursor(0, 0);
-        display.print(F("\n\nTemp: "));
-        display.print(mlx.readObjectTempC(), 2);
+        display.print(F("\n\n   Temp: "));
+        display.print(mlx.readObjectTempC() - mlx.readAmbientTempC(), 2);
         display.display();
         delay(600);
+    }
+}
+
+void voltMeter() {
+    displayText(F("Voltmeter Starting..."));
+    delay(1000);
+    while(readActionButton() != LOW) {
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.print(F("\n\n     V: "));
+        display.print(analogRead(A0) * (5.0/1024)*((R1 + R2)/R2), 2);
+        display.display();
+        delay(300);
     }
 }
 
@@ -244,14 +254,14 @@ void select() {
     case AMBIENT_STATS:
         ambientSensor();
         break;
-    case SOLDERING_IRON:
-        solderingIronMode();
-        break;
     case SCREWDRIVER:
         screwDriverMode();
         break;
     case IR_TEMP:
         irTemp();
+        break;
+    case VOLTMETER:
+        voltMeter();
         break;
     default:
         break;
@@ -265,12 +275,12 @@ void setup() {
     pinMode(ACTION_BTN_PIN, INPUT_PULLUP);
     pinMode(TORCH_PIN, OUTPUT);
     digitalWrite(TORCH_PIN, LOW);
-    pinMode(SOLDERING_IRON_PIN, OUTPUT);
-    digitalWrite(SOLDERING_IRON_PIN, LOW);
     pinMode(SCREWDRIVER_FORWARD, OUTPUT);
     digitalWrite(SCREWDRIVER_FORWARD, LOW);
     pinMode(SCREWDRIVER_BACKWARDS, OUTPUT);
     digitalWrite(SCREWDRIVER_BACKWARDS, LOW);
+    pinMode(SCREWDRIVER_ACTIVATE, OUTPUT);
+    digitalWrite(SCREWDRIVER_ACTIVATE, LOW);
     //Screen initialization
     if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS) || !bme.begin(0x76)) {
         Serial.println("Sensor or screen initialization failed");
